@@ -1,0 +1,103 @@
+
+
+🧭 PASSO A PASSO
+1. 🔍 Verifique o nome do container do Kafka Connect
+
+No terminal, digite:
+
+    docker ps
+
+
+Procure um container com nome parecido com:
+kafka-poc-sqlserver-connect-1 ou kafka-connect.
+
+-----------------------------------------------------------------------------------------------------------
+
+2. 💻 Acesse o container com:
+
+    docker exec -it kafka-poc-sqlserver-connect-1 bash
+
+
+Troque kafka-poc-sqlserver-connect-1 pelo nome real do seu container, se for diferente.
+
+Você estará dentro do Linux do container agora.
+
+
+-----------------------------------------------------------------------------------------------------------
+
+
+
+3. 🧩 Execute o curl para criar o conector de origem
+
+Copie e cole esse comando inteiro no terminal do container:
+
+
+
+curl -X POST http://localhost:8083/connectors \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "sqlserver-source-origem",
+    "config": {
+      "connector.class": "io.debezium.connector.sqlserver.SqlServerConnector",
+      "database.hostname": "sqlserver-origem",
+      "database.port": "1433",
+      "database.user": "sa",
+      "database.password": "@G18u03i1986",
+      "database.dbname": "Origem",
+      "database.server.name": "sqlserver-origem",
+      "table.include.list": "dbo.TB_EXEMPLO_ORIGEM",
+      "database.history.kafka.bootstrap.servers": "kafka:9092",
+      "database.history.kafka.topic": "schema-changes.sqlserver-origem",
+      "decimal.handling.mode": "double",
+      "include.schema.changes": "false"
+    }
+  }'
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------
+
+4. 🧩 Execute o curl para criar o conector de destino
+
+Cole esse comando logo em seguida:
+
+curl -X POST http://localhost:8083/connectors \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "sqlserver-sink-destino",
+    "config": {
+      "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+      "connection.url": "jdbc:sqlserver://sqlserver-destino:1433;databaseName=Destino;user=sa;password=@G18u03i1986;",
+      "topics": "sqlserver-origem.dbo.TB_EXEMPLO_ORIGEM",
+      "auto.create": "true",
+      "insert.mode": "insert"
+    }
+  }'
+
+
+
+
+-----------------------------------------------------------------------------------------------------------
+
+5. ✅ Teste no banco
+
+Insira um novo registro no banco Origem:
+
+USE Origem;
+INSERT INTO TB_EXEMPLO_ORIGEM (Nome) VALUES ('Dado vindo do Kafka');
+
+
+Depois, confira se apareceu automaticamente no banco Destino:
+
+
+USE Destino;
+SELECT * FROM TB_EXEMPLO_ORIGEM;
+
+
+
+
+
+
+

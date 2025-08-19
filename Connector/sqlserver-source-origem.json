@@ -1,0 +1,17 @@
+{
+  "name": "sqlserver-source-origem",
+  "config": {
+    "connector.class": "io.debezium.connector.sqlserver.SqlServerConnector",
+    "database.hostname": "sqlserver-origem",
+    "database.port": "1433",
+    "database.user": "sa",
+    "database.password": "@G18u03i1986",
+    "database.dbname": "Origem",
+    "database.server.name": "sqlserver-origem",
+    "table.include.list": "dbo.TB_EXEMPLO_ORIGEM",
+    "database.history.kafka.bootstrap.servers": "kafka:9092",
+    "database.history.kafka.topic": "schema-changes.sqlserver-origem",
+    "decimal.handling.mode": "double",
+    "include.schema.changes": "false"
+  }
+}

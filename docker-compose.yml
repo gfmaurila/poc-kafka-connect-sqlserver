@@ -1,0 +1,116 @@
+# docker-compose down -v 
+# docker-compose up -d --build
+
+
+
+
+
+version: '3.8'
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    restart: always
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  connect:
+    image: confluentinc/cp-kafka-connect:7.5.0
+    container_name: kafka-poc-sqlserver-connect-1
+    restart: always
+    depends_on:
+      - kafka
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./plugins/mssql-jdbc-13.2.0.jre11.jar:/usr/share/java/mssql-jdbc.jar
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: kafka-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: connect-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_PLUGIN_PATH: "/usr/share/java"
+      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
+    command:
+      - bash
+      - -c
+      - |
+        echo "Aguardando driver JDBC em /usr/share/java"
+        while [ ! -f /usr/share/java/mssql-jdbc.jar ]; do sleep 2; done
+        echo "Driver encontrado. Iniciando Kafka Connect..."
+        /etc/confluent/docker/run
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  sqlserver-origem:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    restart: always
+    container_name: sqlserver-origem
+    ports:
+      - "1433:1433"
+    environment:
+      SA_PASSWORD: "@K18a08f2025"
+      ACCEPT_EULA: "Y"
+    volumes:
+      - ./init/origem.sql:/init.sql
+    command: >
+      /bin/bash -c "/opt/mssql/bin/sqlservr & 
+      sleep 30 && 
+      /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P @K18a08f2025 -i /init.sql"
+
+  sqlserver-destino:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    restart: always
+    container_name: sqlserver-destino
+    ports:
+      - "1434:1433"
+    environment:
+      SA_PASSWORD: "@K18a08f2025"
+      ACCEPT_EULA: "Y"
+    volumes:
+      - ./init/destino.sql:/init.sql
+    command: >
+      /bin/bash -c "/opt/mssql/bin/sqlservr & 
+      sleep 30 && 
+      /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P @K18a08f2025 -i /init.sql"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-poc-sqlserver-connect-1:8083
+
+
+
+
