@@ -5,7 +5,7 @@
     "database.hostname": "sqlserver-origem",
     "database.port": "1433",
     "database.user": "sa",
-    "database.password": "@G18u03i1986",
+    "database.password": "@K18a08f2025",
     "database.dbname": "Origem",
     "database.server.name": "sqlserver-origem",
     "table.include.list": "dbo.TB_EXEMPLO_ORIGEM",
